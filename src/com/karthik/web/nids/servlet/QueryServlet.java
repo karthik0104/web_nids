@@ -2,13 +2,19 @@ package com.karthik.web.nids.servlet;
 
 import java.io.*;
 import java.sql.*;
+import java.util.concurrent.Future;
 
 import javax.servlet.*;
 import javax.servlet.http.*;
+
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.xml.XmlBeanFactory;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
+
+import net.spy.memcached.MemcachedClient;
+import net.spy.memcached.AddrUtil;
+import net.spy.memcached.BinaryConnectionFactory;
 
 public class QueryServlet extends HttpServlet { // JDK 6 and above only
 
@@ -74,7 +80,7 @@ public class QueryServlet extends HttpServlet { // JDK 6 and above only
 			stmt = conn.createStatement();
 
 			// Step 3: Execute a SQL SELECT query
-			String sqlStr = "select * from rules where name = " + "'"
+			String sqlStr = "select * from rules where attack_name = " + "'"
 					+ request.getParameter("attacks") + "'";
 
 			// Print an HTML page as the output of the query
@@ -89,13 +95,37 @@ public class QueryServlet extends HttpServlet { // JDK 6 and above only
 			int count = 0;
 			while (rset.next()) {
 				// Print a paragraph <p>...</p> for each record
-				out.println("<p>" + rset.getString("name") + ", "
-						+ rset.getString("src_bytes") + ", "
-						+ rset.getString("src_bytes2") + ", "
-						+ rset.getString("dst_bytes") + ", "
-						+ rset.getString("dst_bytes2") + ", " + "</p>");
+				out.println("<p>" + rset.getString("attack_name") + ", "
+						+ rset.getString("src_bytes_lower") + ", "
+						+ rset.getString("src_bytes_upper") + ", "
+						+ rset.getString("dst_bytes_lower") + ", "
+						+ rset.getString("dst_bytes_upper") + ", " + "</p>");
 				count++;
 			}
+
+			// ------------------- Memcached Implementation
+
+			MemcachedClient memcachedClient = new MemcachedClient(
+					AddrUtil.getAddresses("127.0.0.1:11211"));
+			String rule = (String) memcachedClient.get(str_choice);
+
+			if (rule == null) {
+				// First make the rule object serializable
+				String serial_rule = r.getSourceBytesLower() + ","
+						+ r.getSourceBytesUpper() + "," + r.getFitness();
+
+				Future<Boolean> result = memcachedClient.add(str_choice, 0,
+						serial_rule);
+
+			}
+
+			rule = (String) memcachedClient.get(str_choice);
+
+			System.out.println("The following are the rules of " + str_choice
+					+ " stored in Memcache:" + rule);
+
+			// ------------------- End Memcached Implementation
+
 			out.println("<p>==== " + count + " records found =====</p><hr>");
 			out.println("<br>Fitness Value:<input type=\"text\" id=\"fitness_value\"><br>");
 			out.println("<script>document.getElementById(\"fitness_value\").value=\""
