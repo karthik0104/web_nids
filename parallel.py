@@ -15,7 +15,7 @@ class ParallelGA():
     """ Executes a process on remote machine """
     self.ssh[pos] = paramiko.SSHClient()
     self.ssh[pos].set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    self.ssh[pos].connect(host_ip_address,username='karthik',password='1234')
+    self.ssh[pos].connect(host_ip_address,username='abc',password='abc')
     self.stdin[pos],self.stdout[pos],self.stderr[pos] = self.ssh[pos].exec_command(command)
     self.output.put((pos,self.stdout[pos].readlines()))
     self.stdin[pos].close()
